@@ -1,39 +1,36 @@
-﻿using Microsoft.Extensions.Logging;
-using static System.Net.Mime.MediaTypeNames;
+﻿using System.Net;
 
-namespace WebApplication1.Middlewares
+public class ExceptionMiddleware
 {
-    public class ExceptionMiddleware
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionMiddleware> _logger;
+
+    public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<ExceptionMiddleware> _logger;
+        _next = next;
+        _logger = logger;
+    }
 
-        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
         {
-            _next = next;
-            _logger = logger;
+            await _next(context);
         }
-
-        public async Task InvokeAsync(HttpContext context)
+        catch (Exception ex)
         {
-            try
+            _logger.LogError(ex, "An error occurred: {Message}", ex.Message);
+
+            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            context.Response.ContentType = "application/json";
+
+            var response = new
             {
-                await _next(context);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطای غیرمنتظره‌ای رخ داد!"); // ثبت لاگ
-                context.Response.StatusCode = 500;
-                context.Response.ContentType = "application/json";
-                var errorResponse = new
-                {
-                    Message = "یک خطای غیرمنتظره رخ داد.",
-                    ErrorId = Guid.NewGuid()
-                };
-                await context.Response.WriteAsJsonAsync(errorResponse);
-            }
+                ErrorId = Guid.NewGuid(),
+                Message = "خطایی رخ داده است. لطفاً با پشتیبانی تماس بگیرید."
+            };
+
+            await context.Response.WriteAsJsonAsync(response);
         }
-
-
     }
 }

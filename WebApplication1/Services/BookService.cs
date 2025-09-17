@@ -2,6 +2,8 @@
 using WebApplication1.Repositories;
 using WebApplication1.DTOs;
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using AutoMapper.QueryableExtensions;
 
 namespace WebApplication1.Services;
 
@@ -11,13 +13,14 @@ public class BookService
     private readonly IUserRepository _userRepository;
     private readonly ICacheService _cacheService;
     private readonly IMapper _mapper;
-
-    public BookService(IBookRepository bookRepository, IUserRepository userRepository, ICacheService cacheService, IMapper mapper)
+    private readonly ILogger _logger;
+    public BookService(IBookRepository bookRepository, IUserRepository userRepository, ICacheService cacheService, IMapper mapper, ILogger logger)
     {
         _bookRepository = bookRepository;
         _userRepository = userRepository;
         _cacheService = cacheService;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<User?> GetUserByUserNameAsync(string userName)
@@ -34,11 +37,23 @@ public class BookService
         return _mapper.Map<BookResultDto>(addedBook);
     }
 
-    public async Task<BookResultDto?> GetBookByIdAsync(int id)
+    public async Task<BookDto?> GetBookByIdAsync(int id)
     {
-        var book = await _bookRepository.GetByIdAsync(id);
-        return book == null ? null : _mapper.Map<BookResultDto>(book);
+        try
+        {
+            var book = await _bookRepository.GetByIdAsync(id);
+            if (book == null)
+                return null;
+
+            return _mapper.Map<BookDto>(book);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "خطا در گرفتن کتاب با Id: {Id}", id);
+            throw;
+        }
     }
+
 
     public async Task UpdateBookAsync(Book book)
     {
@@ -75,17 +90,26 @@ public class BookService
         return result;
     }
 
-    public async Task<List<BookResultDto>> GetBooksPagedAsync(int pageNumber, int pageSize, string? title = null, string? author = null)
+    public async Task<List<BookDto>> GetBooksPagedAsync(int pageNumber, int pageSize, string? titleFilter, string? authorFilter)
     {
-        var books = await _bookRepository.GetAllAsync();
+        var query = _bookRepository.Query();
 
-        if (!string.IsNullOrWhiteSpace(title))
-            books = books.Where(b => b.Title.Contains(title)).ToList();
+        if (!string.IsNullOrEmpty(titleFilter))
+            query = query.Where(b => b.Title.Contains(titleFilter));
 
-        if (!string.IsNullOrWhiteSpace(author))
-            books = books.Where(b => b.Author.Contains(author)).ToList();
+        if (!string.IsNullOrEmpty(authorFilter))
+            query = query.Where(b => b.Author.Contains(authorFilter));
 
-        var paged = books.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
-        return _mapper.Map<List<BookResultDto>>(paged);
+        var result = await query
+            .AsNoTracking()
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ProjectTo<BookDto>(_mapper.ConfigurationProvider)
+            .ToListAsync();
+
+        return result;
     }
+
+
+
 }

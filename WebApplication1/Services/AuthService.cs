@@ -6,41 +6,34 @@ using System.Text;
 using WebApplication1.Models;
 using WebApplication1.Setting;
 
-
-namespace WebApplication1.Services;
-
 public class AuthService
 {
-    private readonly JwtSettings _jwtSettings;
+    private readonly JWTSettings _settings;
 
-
-    public AuthService(IOptions<JwtSettings> jwtSettings)
+    public AuthService(IOptions<JWTSettings> settings)
     {
-        _jwtSettings = jwtSettings.Value;
+        _settings = settings.Value;
     }
-    public string GenerateToken(User user)
-    {
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_jwtSettings.Key);
 
-        var tokenDescriptor = new SecurityTokenDescriptor
+    public string GenerateJwtToken(User user)
+    {
+        var claims = new[]
         {
-            Subject = new ClaimsIdentity(new[]
-            {
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Role, user.Role),
-                new Claim("Department","HR"),  // هر Claim دلخواه
-                new Claim("Age","20")
-            }),
-            Expires = DateTime.UtcNow.AddHours(1),
-            Issuer = _jwtSettings.Issuer,
-            Audience = _jwtSettings.Audience,
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
+            new Claim(ClaimTypes.Role, user.Role) // 👈 نقش کاربر
         };
 
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Key));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: _settings.Issuer,
+            audience: _settings.Audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(_settings.ExpireMinutes),
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
-
-
 }

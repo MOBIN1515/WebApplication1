@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApplication1.DTOs;
 using WebApplication1.Models;
@@ -13,11 +14,12 @@ public class BooksController : ControllerBase
 {
     private readonly BookService _service;
     private readonly ILogger<BooksController> _logger;
-
-    public BooksController(BookService service, ILogger<BooksController> logger)
+    private readonly IMapper _mapper;
+    public BooksController(BookService service, ILogger<BooksController> logger, IMapper mapper)
     {
         _service = service;
         _logger = logger;
+        _mapper = mapper;
     }
 
     [HttpGet]
@@ -81,20 +83,27 @@ public class BooksController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] BookDto dto)
     {
         try
         {
-            var book = await _service.GetBookByIdAsync(id);
-            if (book == null)
+        
+            var existing = await _service.GetBookByIdAsync(id);
+            if (existing == null)
                 return NotFound(new { message = $"کتاب با شناسه {id} پیدا نشد" });
 
-            book.Title = dto.Title;
-            book.Author = dto.Author;
-            book.Year = dto.Year;
+           
+            var bookEntity = _mapper.Map<Book>(dto);
 
-            await _service.UpdateBookAsync(book);
-            return Ok(book);
+            bookEntity.Id = id;
+
+            await _service.UpdateBookAsync(bookEntity);
+
+            var resultDto = _mapper.Map<BookResultDto>(bookEntity);
+
+            return Ok(resultDto);
         }
         catch (Exception ex)
         {
@@ -102,6 +111,7 @@ public class BooksController : ControllerBase
             return StatusCode(500, new { message = "یک خطای داخلی رخ داد" });
         }
     }
+
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]

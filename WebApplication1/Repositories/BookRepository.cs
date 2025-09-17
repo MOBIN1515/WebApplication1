@@ -1,8 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using WebApplication1.AppDbContextEF;
-
-namespace WebApplication1.Repositories;
-
+﻿using WebApplication1.AppDbContextEF;
+using WebApplication1.Repositories;
+using Microsoft.EntityFrameworkCore;
 public class BookRepository : IBookRepository
 {
     private readonly AppDbContext _context;
@@ -12,9 +10,10 @@ public class BookRepository : IBookRepository
         _context = context;
     }
 
-    // -----------------------------
-    // متدهای Async اصلی
-    // -----------------------------
+    public IQueryable<Book> Query()
+    {
+        return _context.Books.AsQueryable();
+    }
 
     public async Task<List<Book>> GetAllAsync()
     {
@@ -23,7 +22,7 @@ public class BookRepository : IBookRepository
 
     public async Task<Book?> GetByIdAsync(int id)
     {
-        return await _context.Books.FindAsync(id);
+        return await _context.Books.FirstOrDefaultAsync(b => b.Id == id);
     }
 
     public async Task<Book> AddAsync(Book book)
@@ -48,8 +47,4 @@ public class BookRepository : IBookRepository
             await _context.SaveChangesAsync();
         }
     }
-
-    // -----------------------------
-    // Sync methods removed
-    // -----------------------------
 }

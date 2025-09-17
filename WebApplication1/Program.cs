@@ -10,7 +10,7 @@ using WebApplication1.Middlewares;
 using WebApplication1.Setting;
 using WebApplication1.AppDbContextEF;
 using WebApplication1.Repositories;
-
+using WebApplication1.IBookService;
 
 
 
@@ -21,7 +21,16 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .MinimumLevel.Debug() 
     .CreateLogger();
+
+
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog((context, config) =>
+{
+    config
+        .WriteTo.Console()
+        .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day);
+});
 
 
 // ===========================
@@ -35,6 +44,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Business Services
 builder.Services.AddScoped<BookService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IBookService, BookService>();
+builder.Services.AddAutoMapper(typeof(Program));
 
 // Cache
 builder.Services.AddMemoryCache();
@@ -63,30 +74,36 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 // JWT
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
-            )
-        };
-    });
+var jwtSettings = builder.Configuration.GetSection("JWTSettings");
+builder.Services.Configure<JWTSettings>(jwtSettings);
 
-// Authorization
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]))
+    };
+});
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
     options.AddPolicy("UserOrAdmin", policy => policy.RequireRole("Admin", "User"));
 });
+
+
+
 
 builder.Host.UseSerilog();
 builder.Services.AddScoped<IBookRepository, BookRepository>();
@@ -107,7 +124,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.UseAuthentication();  
+app.UseAuthorization();
 app.UseAuthentication();
 app.UseAuthorization();
 

@@ -4,10 +4,12 @@ using WebApplication1.Models;
 
 namespace WebApplication1.Mapping;
 
-public class BookProfile : Profile
+public class MappingProfile : Profile
 {
-    public BookProfile()
+    public MappingProfile()
     {
-        CreateMap<Book, BookResultDto>();
+        CreateMap<Book, BookDto>();
+        CreateMap<BookDto, Book>();
     }
 }
+

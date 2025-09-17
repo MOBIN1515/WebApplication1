@@ -7,4 +7,7 @@ public interface IBookRepository
     Task<Book> AddAsync(Book book);
     Task UpdateAsync(Book book);
     Task DeleteAsync(int id);
+
+   
+    IQueryable<Book> Query();
 }

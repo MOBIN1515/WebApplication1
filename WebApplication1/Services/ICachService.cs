@@ -9,31 +9,27 @@ public interface ICacheService
     void Remove(string key);
 }
 
-public class CacheService : ICacheService
+public class MemoryCacheService : ICacheService
 {
-    private readonly IMemoryCache _cache;
-
-    public CacheService(IMemoryCache cache)
+    private readonly IMemoryCache _memoryCache;
+    public MemoryCacheService(IMemoryCache memoryCache)
     {
-        _cache = cache;
+        _memoryCache = memoryCache;
     }
 
     public T? Get<T>(string key)
     {
-        return _cache.TryGetValue(key, out T value) ? value : default;
+        _memoryCache.TryGetValue(key, out T value);
+        return value;
     }
 
-    public void Set<T>(string key, T value, TimeSpan? absoluteExpireTime = null)
+    public void Set<T>(string key, T value, TimeSpan? expiration = null)
     {
-        var options = new MemoryCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = absoluteExpireTime ?? TimeSpan.FromMinutes(5)
-        };
-        _cache.Set(key, value, options);
+        _memoryCache.Set(key, value, expiration ?? TimeSpan.FromMinutes(5));
     }
 
     public void Remove(string key)
     {
-        _cache.Remove(key);
+        _memoryCache.Remove(key);
     }
 }
