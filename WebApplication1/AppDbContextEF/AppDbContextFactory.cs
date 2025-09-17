@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using System.IO;
-using WebApplication1;
+using WebApplication1.AppDbContextEF;
 
 
 

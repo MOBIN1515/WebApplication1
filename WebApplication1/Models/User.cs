@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 
-namespace WebApplication1
+namespace WebApplication1.Models
 {
     [Table("users")]
     public class User
